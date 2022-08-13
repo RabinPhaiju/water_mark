@@ -17,7 +17,9 @@ style.theme_use('vista')# ('winnative', 'clam', 'alt', 'default', 'classic', 'vi
 
 # global variables
 result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff =None,None,None,None,None,None,None,None,None,None,None,None
+result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2 =None,None,None,None,None,None,None,None,None,None,None
 
+dwt_level = 2
 pos_list = ['Center','Top Left','Top Right','Bottom Left','Bottom Right']
 noise_list = ['Gaussian','Salt & Pepper']
 
@@ -161,38 +163,73 @@ third_frame.grid(row=2,column=0,pady=5)
 
 def add_watermark():
     global result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff
+    global result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2
+    
     A = cv2.imread(cover_image_path.get())
     host = cv2.cvtColor(A, cv2.COLOR_BGR2GRAY)
     LL, (LH, HL, HH) = dwt2(host, 'haar')
     h, w = LL.shape
+    if(dwt_level==2):
+        LL2, (LH2, HL2, HH2) = dwt2(LL, 'haar')
+        h2, w2 = LL2.shape
     
     B = cv2.imread(watermark_image_path.get())
     watermark = cv2.cvtColor(B, cv2.COLOR_BGR2GRAY)
     LL_w, (LH_w, HL_w, HH_w) = dwt2(watermark, 'haar')
     hh, ww = LL_w.shape
+    if(dwt_level==2):
+        LL_w2, (LH_w2, HL_w2, HH_w2) = dwt2(LL_w, 'haar')
+        hh2, ww2 = LL_w2.shape
     
     # pos_list = ['Center','Top Left','Top Right','Bottom Left','Bottom Right']
     if(pos_var.get() == 'Center'):
-        yoff = round((h-hh)/2)
-        xoff = round((w-ww)/2)
+        if(dwt_level == 1):
+            yoff = round((h-hh)/2)
+            xoff = round((w-ww)/2)
+        elif(dwt_level == 2):
+            yoff = round((h2-hh2)/2)
+            xoff = round((w2-ww2)/2)
     elif(pos_var.get() == 'Top Left'):
         yoff = 0
         xoff = 0
     elif(pos_var.get() == 'Top Right'):
         yoff = 0
-        xoff = w-ww
+        if(dwt_level == 1):
+            xoff = w-ww
+        elif(dwt_level == 2):
+            xoff = round(w2-ww2)
     elif(pos_var.get() == 'Bottom Left'):
-        yoff = h-hh
+        if(dwt_level == 1):
+            yoff = h-hh
+        elif(dwt_level == 2):
+            yoff = round(h2-hh2)
         xoff = 0
     elif(pos_var.get() == 'Bottom Right'):
-        yoff = h-hh
-        xoff = w-ww
+        if(dwt_level == 1):
+            yoff = h-hh
+            xoff = w-ww
+        elif(dwt_level == 2):
+            yoff = round(h2-hh2)
+            xoff = round(w2-ww2)
         
-    manipulated = LL_w * 0.98
+    if(dwt_level == 1):
+        manipulated = LL_w * 0.98
+    elif(dwt_level == 2):
+        manipulated = LL_w2 * 0.98
+
     result = LL.copy()
-    result[yoff:yoff+hh, xoff:xoff+ww] += manipulated
-    result_LL = idwt2((result,( LH, HL, HH)), 'haar')
-    cv2.imwrite('gui/watermarked.jpg', result_LL)
+    result2 = None
+
+    if(dwt_level == 1):
+        result[yoff:yoff+hh, xoff:xoff+ww] += manipulated
+        result_LL = idwt2((result,( LH, HL, HH)), 'haar')
+        cv2.imwrite('gui/watermarked.jpg', result_LL)
+    elif(dwt_level == 2):
+        result2 = LL2.copy()
+        result2[yoff:yoff+hh2, xoff:xoff+ww2] += manipulated
+        result_LL2 = idwt2((result2,( LH2, HL2, HH2)), 'haar')
+        result_LL =  idwt2((result_LL2,( LH, HL, HH)), 'haar')
+        cv2.imwrite('gui/watermarked.jpg', result_LL)
     upload_watermarked_image('gui/watermarked.jpg')
 
 def upload_watermarked_image(img_path):
@@ -207,9 +244,22 @@ def extract_watermark():
     I = cv2.imread('gui/watermarked.jpg', 1)
     I = cv2.cvtColor(I, cv2.COLOR_BGR2GRAY)
     wm_LL,( m_LH, wm_HL, m_HH) = dwt2(I, 'haar')
-    new_LL = wm_LL - LL
+    wm_LL2,new_LL,new_image,new_image2 = None,None,None,None
+    if(dwt_level == 2):
+        wm_LL2,( m_LH2, wm_HL2, m_HH2) = dwt2(wm_LL, 'haar')
+
+    if(dwt_level == 1):
+        new_LL = wm_LL - LL
+    elif(dwt_level == 2):
+        new_LL = wm_LL2 - LL2
+
     new_LL = new_LL / 0.98
-    new_image = idwt2((new_LL, (LH, HL, HH)), 'haar')
+    if(dwt_level == 1):
+        new_image = idwt2((new_LL, (LH, HL, HH)), 'haar')
+    elif(dwt_level == 2):
+        new_image2 = idwt2((new_LL, (LH2, HL2, HH2)), 'haar')
+        new_image = idwt2((new_image2, (LH, HL, HH)), 'haar')
+
     new_crop_image = new_image.copy()
     
     if pos_var.get() == 'Center':
@@ -231,13 +281,25 @@ def extract_watermark():
     recover_watermark_button.grid(column=3,row=0,padx=5,pady=5)
 
 def remove_watermark():
+    new_LL,wm_LL2,wm_LH2,wm_HL2,wm_HH2,new_image,new_image2 = None,None,None,None,None,None,None
     I = cv2.imread('gui/watermarked.jpg', 1)
     I = cv2.cvtColor(I, cv2.COLOR_BGR2GRAY)
-    wm_LL,( m_LH, wm_HL, m_HH) = dwt2(I, 'haar')
-    new_LL = wm_LL.copy()
-    new_LL[yoff:yoff+hh, xoff:xoff+ww] -= manipulated
-    new_LL = new_LL 
-    new_image = idwt2((new_LL, (LH, HL, HH)), 'haar')
+    wm_LL,( wm_LH, wm_HL, wm_HH) = dwt2(I, 'haar')
+    if(dwt_level == 2):
+        wm_LL2,( wm_LH2, wm_HL2, wm_HH2) = dwt2(wm_LL, 'haar')
+    
+    if(dwt_level == 1):
+        new_LL = wm_LL.copy()
+        new_LL[yoff:yoff+hh, xoff:xoff+ww] -= manipulated
+    elif(dwt_level == 2):
+        new_LL = wm_LL2.copy()
+        new_LL[yoff:yoff+hh2, xoff:xoff+ww2] -= manipulated
+ 
+    if(dwt_level == 1):
+        new_image = idwt2((new_LL, ( wm_LH, wm_HL, wm_HH)), 'haar')
+    if(dwt_level == 2):
+        new_image2 = idwt2((new_LL, (wm_LH2, wm_HL2, wm_HH2)), 'haar')
+        new_image = idwt2((new_image2, (wm_LH, wm_HL, wm_HH)), 'haar')
     cv2.imwrite('gui/extracted_cover.jpg', new_image)
     global recover_cover_icon
     recover_cover_icon = Image.open('gui/extracted_cover.jpg')
@@ -258,9 +320,9 @@ def add_noise():
     I = cv2.imread('gui/watermarked.jpg',1)
     sp = random_noise(I,mode=current_noise_type,seed=None,clip=True)
     sp = cv2.convertScaleAbs(sp, alpha=(255.0))
-    cv2.imwrite('gui/noised_image.jpg', sp)
+    cv2.imwrite('gui/watermarked.jpg', sp)
 
-    noised_image_icon = Image.open('gui/noised_image.jpg')
+    noised_image_icon = Image.open('gui/watermarked.jpg')
     noised_watermark = noised_image_icon.resize((280,280), Image.ANTIALIAS)
     noised_watermark =  ImageTk.PhotoImage(noised_watermark)
     noised_watermark_button = Button(third_frame,image=noised_watermark,borderwidth=1,relief=RIDGE,width=280,height=280)
