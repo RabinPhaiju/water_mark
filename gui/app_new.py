@@ -98,17 +98,15 @@ def create_watermark_image():
         text = 'Watermark'
     fontname = "gui/Roboto-Black.ttf"
     fontsize = 34
-    colorText = "white"
-    colorOutline = "black"
-    colorBackground = "black"
+    colorText = "black"
     
     font = ImageFont.truetype(fontname, fontsize)
     width, height = getSize(text, font)
-    img = Image.new('RGB', (width+8, height*2))
+    img = Image.new('RGBA', (width+8, height*2),(255, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.text((2, height/2), text, fill=colorText, font=font)
     # d.rectangle((0, 0, width+3, height+3), outline=colorOutline)
-    img.save("gui/text_watermark.png")
+    img.save("gui/text_watermark.png",'PNG')
     uplaod_watermark_image('gui/text_watermark.png')
     
 # cover_icon = PhotoImage(file='gui/cover_icon.png')
