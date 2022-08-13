@@ -1,4 +1,5 @@
 import cv2
+import random
 from skimage.util import random_noise
 from tkinter import *
 from pywt import dwt2, idwt2
@@ -7,7 +8,7 @@ from tkinter import ttk,filedialog
 from PIL import Image,ImageTk,ImageDraw, ImageFont
 
 window = Tk()
-window.geometry("1100x720")
+window.geometry("1140x720")
 # window.resizable(0,0)
 # window.wm_iconbitmap(os.getcwd()+'/gui/icon.ico')
 window.title('Watermark using DWT')
@@ -19,7 +20,9 @@ style.theme_use('vista')# ('winnative', 'clam', 'alt', 'default', 'classic', 'vi
 result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff =None,None,None,None,None,None,None,None,None,None,None,None
 result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2 =None,None,None,None,None,None,None,None,None,None,None
 
-dwt_level = 2
+dwt_level = 1
+transparent = 0.95
+# transparent = 0.04
 pos_list = ['Center','Top Left','Top Right','Bottom Left','Bottom Right']
 noise_list = ['Gaussian','Salt & Pepper']
 
@@ -147,12 +150,23 @@ watermark_input.grid(column=0,row=3,padx=5)
 watermark_create = Button(second_sub_frame,command=create_watermark_image,text=' Create Watermark',font=('Candara Light',16))
 watermark_create.grid(column=0,row=4,padx=5)
 
-watermark_pos_text = Label(second_sub_frame,text='Watermark Position',font=('Candara Light',16),width=16)
-watermark_pos_text.grid(column=0,row=5)
-pos_var = StringVar(second_sub_frame)
+second_sub_sub_frame = ttk.Frame(second_sub_frame)
+second_sub_frame.columnconfigure(0, weight=1)
+second_sub_sub_frame.grid(row=5,column=0)
+
+watermark_pos_text = Label(second_sub_sub_frame,text='Position',font=('Candara Light',16),width=10)
+watermark_pos_text.grid(column=0,row=0)
+pos_var = StringVar(second_sub_sub_frame)
 pos_var.set(pos_list[0]) # default value
-watermark_pos = OptionMenu(second_sub_frame,pos_var,*pos_list)
-watermark_pos.grid(column=0,row=6,padx=5)
+watermark_pos = OptionMenu(second_sub_sub_frame,pos_var,*pos_list)
+watermark_pos.grid(column=1,row=0)
+
+# dwt_level_text = Label(second_sub_sub_frame,text='DWT Level',font=('Candara Light',16),width=10)
+# dwt_level_text.grid(column=0,row=1)
+# dwt_level1 = StringVar(second_sub_sub_frame)
+# dwt_level1.set(1) # default value
+# dwt_level_pos = OptionMenu(second_sub_sub_frame,dwt_level,*[1,2])
+# dwt_level_pos.grid(column=1,row=1)
 
 # row 2
 third_frame = ttk.Frame(main_frame)
@@ -211,9 +225,9 @@ def add_watermark():
             xoff = round(w2-ww2)
         
     if(dwt_level == 1):
-        manipulated = LL_w * 0.98
+        manipulated = LL_w * transparent
     elif(dwt_level == 2):
-        manipulated = LL_w2 * 0.98
+        manipulated = LL_w2 * transparent
 
     result = LL.copy()
     result2 = None
@@ -251,7 +265,7 @@ def extract_watermark():
     elif(dwt_level == 2):
         new_LL = wm_LL2 - LL2
 
-    new_LL = new_LL / 0.98
+    new_LL = new_LL / transparent
     if(dwt_level == 1):
         new_image = idwt2((new_LL, (LH, HL, HH)), 'haar')
     elif(dwt_level == 2):
@@ -315,10 +329,26 @@ def add_noise():
     elif(noise_type == 'Salt & Pepper'):
         current_noise_type = 's&p'
 
-    I = cv2.imread('gui/watermarked.jpg',1)
-    sp = random_noise(I,mode=current_noise_type,seed=None,clip=True)
-    sp = cv2.convertScaleAbs(sp, alpha=(255.0))
-    cv2.imwrite('gui/watermarked.jpg', sp)
+    if(noise_type == 'Salt & Pepper'):
+        I = cv2.imread('gui/watermarked.jpg',1)
+        sp = random_noise(I,mode=current_noise_type,seed=None,clip=True)
+        sp = cv2.convertScaleAbs(sp, alpha=(255.0))
+        cv2.imwrite('gui/watermarked.jpg', sp)
+
+    if(noise_type == 'Gaussian'):
+        img_0 = cv2.imread('gui/watermarked.jpg',cv2.IMREAD_GRAYSCALE)
+        rw,cl = img_0.shape
+        num_pix = random.randint(300,10000)
+        for i in range(num_pix):
+            y_crd = random.randint(0,rw-1)
+            x_crd = random.randint(0,cl-1)
+            img_0[y_crd][x_crd] = 255
+        for i in range(num_pix):
+            y_crd = random.randint(0,rw-1)
+            x_crd = random.randint(0,cl-1)
+            img_0[y_crd][x_crd] = 0
+        cv2.imwrite('gui/watermarked.jpg', img_0)
+
 
     noised_image_icon = Image.open('gui/watermarked.jpg')
     noised_watermark = noised_image_icon.resize((280,280), Image.ANTIALIAS)
