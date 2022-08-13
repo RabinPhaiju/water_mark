@@ -1,5 +1,6 @@
 import cv2
 import random
+import numpy as np
 from skimage.util import random_noise
 from tkinter import *
 from pywt import dwt2, idwt2
@@ -9,12 +10,12 @@ from PIL import Image,ImageTk,ImageDraw, ImageFont
 
 window = Tk()
 window.geometry("1140x720")
-# window.resizable(0,0)
+window.resizable(0,0)
 # window.wm_iconbitmap(os.getcwd()+'/gui/icon.ico')
 window.title('Watermark using DWT')
 
 style = ttk.Style()
-style.theme_use('vista')# ('winnative', 'clam', 'alt', 'default', 'classic', 'vista', 'xpnative')
+style.theme_use('xpnative')# ('winnative', 'clam', 'alt', 'default', 'classic', 'vista', 'xpnative')
 
 # global variables
 result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff =None,None,None,None,None,None,None,None,None,None,None,None
@@ -31,10 +32,6 @@ watermark_image_path = StringVar()
 
 current_text = StringVar()
 current_text.set('What it does: Add and Remove WaterMark')
-
-# Load model
-def load_model():
-    print('____model loaded_____')
 
 # main notebook
 main_notebook = ttk.Notebook(window)
@@ -285,6 +282,21 @@ def extract_watermark():
     elif pos_var.get() == 'Bottom Right':
         new_crop_image = new_crop_image[h*2-hh*2:h*2, w*2-ww*2:w*2+ww*2]
     cv2.imwrite('gui/extracted_watermark.jpeg', new_crop_image)
+
+    img_0 = cv2.imread("gui/extracted_watermark.jpeg",cv2.IMREAD_GRAYSCALE)
+    new_img = img_0.copy()
+    average = np.average(img_0)
+
+    if(len(watermark_input.get('1.0',END))>1):
+        for i, row in enumerate(img_0):
+            for j,pixel in enumerate(row):
+                if(pixel < (average)):
+                    new_img[i][j] = 0
+                else:
+                    new_img[i][j] = 255
+        cv2.imwrite('gui/extracted_watermark.jpeg', new_img)
+
+
     global recover_watermark_icon
     recover_watermark_icon = Image.open('gui/extracted_watermark.jpeg')
     recover_watermark_icon = recover_watermark_icon.resize((280,280), Image.ANTIALIAS)
