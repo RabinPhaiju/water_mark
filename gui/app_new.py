@@ -1,6 +1,7 @@
 import cv2
 import random
 import numpy as np
+from math import log10, sqrt
 from skimage.util import random_noise
 from tkinter import *
 from pywt import dwt2, idwt2
@@ -22,8 +23,17 @@ result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff =None,None,None,None,None,
 result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2 =None,None,None,None,None,None,None,None,None,None,None
 
 dwt_level = 2
-q = 0.98
+# q = 1.5
+# q = 1
+# q = 0.98
+# q = 0.95
+# q = 0.90
+q = 0.85
+# q = 0.78
+# q = 0.6
+
 k = 0.009
+
 pos_list = ['Center','Top Left','Top Right','Bottom Left','Bottom Right']
 noise_list = ['Gaussian','Salt & Pepper']
 
@@ -242,6 +252,25 @@ def add_watermark():
         result_LL =  idwt2((result_LL2,( LH, HL, HH)), 'haar')
         cv2.imwrite('gui/watermarked.jpg', result_LL)
     upload_watermarked_image('gui/watermarked.jpg')
+    # MSE_PSNR()
+
+def MSE_PSNR():
+    img1, img2 = None,None
+    # I1 = cv2.imread('gui/lena256.png')
+    # I2 = cv2.imread('gui/watermarked.jpg')
+    I1 = cv2.imread('gui/cameraman256.png')
+    I2 = cv2.imread('gui/extracted_watermark.jpeg')
+    img1 = cv2.cvtColor(I1, cv2.COLOR_BGR2GRAY)
+    img2 = cv2.cvtColor(I2, cv2.COLOR_BGR2GRAY)
+
+    mse = np.mean((img1 - img2) ** 2)
+    if(mse == 0):  # MSE is zero means no noise is present in the signal .
+                  # Therefore PSNR have no importance.
+        return 100
+    max_pixel = 255.0
+    psnr = 20 * log10(max_pixel / sqrt(mse))
+    print('mse',mse)
+    print('psnr',psnr)
 
 def upload_watermarked_image(img_path):
     global watermarked_icon
@@ -305,6 +334,7 @@ def extract_watermark():
     recover_watermark_icon =  ImageTk.PhotoImage(recover_watermark_icon)
     recover_watermark_button = Button(third_frame,image=recover_watermark_icon,borderwidth=1,relief=RIDGE,width=280,height=280)
     recover_watermark_button.grid(column=3,row=0,padx=5,pady=5)
+    # MSE_PSNR()
 
 def remove_watermark():
     new_LL,wm_LL2,wm_LH2,wm_HL2,wm_HH2,new_image,new_image2 = None,None,None,None,None,None,None
@@ -371,6 +401,7 @@ def add_noise():
     noised_watermark =  ImageTk.PhotoImage(noised_watermark)
     noised_watermark_button = Button(third_frame,image=noised_watermark,borderwidth=1,relief=RIDGE,width=280,height=280)
     noised_watermark_button.grid(column=1,row=0,padx=5,pady=5)
+    # MSE_PSNR()
     
 
 noised_watermark = Image.open('gui/noised_watermarked_icon.jpg')
