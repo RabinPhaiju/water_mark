@@ -21,9 +21,9 @@ style.theme_use('xpnative')# ('winnative', 'clam', 'alt', 'default', 'classic', 
 result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff =None,None,None,None,None,None,None,None,None,None,None,None
 result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2 =None,None,None,None,None,None,None,None,None,None,None
 
-dwt_level = 1
-transparent = 0.95
-# transparent = 0.04
+dwt_level = 2
+q = 0.98
+k = 0.009
 pos_list = ['Center','Top Left','Top Right','Bottom Left','Bottom Right']
 noise_list = ['Gaussian','Salt & Pepper']
 
@@ -222,19 +222,21 @@ def add_watermark():
             xoff = round(w2-ww2)
         
     if(dwt_level == 1):
-        manipulated = LL_w * transparent
+        manipulated = LL_w * q
     elif(dwt_level == 2):
-        manipulated = LL_w2 * transparent
+        manipulated = LL_w2 * q
 
     result = LL.copy()
     result2 = None
 
     if(dwt_level == 1):
+        result[yoff:yoff+hh, xoff:xoff+ww] *=k
         result[yoff:yoff+hh, xoff:xoff+ww] += manipulated
         result_LL = idwt2((result,( LH, HL, HH)), 'haar')
         cv2.imwrite('gui/watermarked.jpg', result_LL)
     elif(dwt_level == 2):
         result2 = LL2.copy()
+        result2[yoff:yoff+hh2, xoff:xoff+ww2] *=k
         result2[yoff:yoff+hh2, xoff:xoff+ww2] += manipulated
         result_LL2 = idwt2((result2,( LH2, HL2, HH2)), 'haar')
         result_LL =  idwt2((result_LL2,( LH, HL, HH)), 'haar')
@@ -258,11 +260,11 @@ def extract_watermark():
         wm_LL2,( m_LH2, wm_HL2, m_HH2) = dwt2(wm_LL, 'haar')
 
     if(dwt_level == 1):
-        new_LL = wm_LL - LL
+        new_LL = wm_LL - LL*k
     elif(dwt_level == 2):
-        new_LL = wm_LL2 - LL2
+        new_LL = wm_LL2 - LL2*k
 
-    new_LL = new_LL / transparent
+    # new_LL = new_LL / q
     if(dwt_level == 1):
         new_image = idwt2((new_LL, (LH, HL, HH)), 'haar')
     elif(dwt_level == 2):
@@ -315,9 +317,11 @@ def remove_watermark():
     if(dwt_level == 1):
         new_LL = wm_LL.copy()
         new_LL[yoff:yoff+hh, xoff:xoff+ww] -= manipulated
+        new_LL[yoff:yoff+hh, xoff:xoff+ww] /=k
     elif(dwt_level == 2):
         new_LL = wm_LL2.copy()
         new_LL[yoff:yoff+hh2, xoff:xoff+ww2] -= manipulated
+        new_LL[yoff:yoff+hh2, xoff:xoff+ww2] /=k
  
     if(dwt_level == 1):
         new_image = idwt2((new_LL, ( wm_LH, wm_HL, wm_HH)), 'haar')
