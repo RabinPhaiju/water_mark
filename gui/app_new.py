@@ -1,6 +1,7 @@
 import cv2
 import random
 import numpy as np
+import pytesseract
 from math import log10, sqrt
 from skimage.util import random_noise
 from tkinter import *
@@ -22,15 +23,15 @@ style.theme_use('xpnative')# ('winnative', 'clam', 'alt', 'default', 'classic', 
 result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff =None,None,None,None,None,None,None,None,None,None,None,None
 result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2 =None,None,None,None,None,None,None,None,None,None,None
 
-dwt_level = 2
+dwt_level = 1
 # q = 1.5
 # q = 1
 # q = 0.98
 # q = 0.95
 # q = 0.90
-q = 0.85
+# q = 0.85
 # q = 0.78
-# q = 0.6
+q = 0.6
 
 k = 0.009
 
@@ -108,11 +109,13 @@ def create_watermark_image():
         text = 'Watermark'
     fontname = "gui/Roboto-Black.ttf"
     fontsize = 34
-    colorText = "black"
+    colorText = "gray"
+    colorOutline = "black"
+    colorBackground = "black"
     
     font = ImageFont.truetype(fontname, fontsize)
     width, height = getSize(text, font)
-    img = Image.new('RGBA', (width+8, height*2),(255, 0, 0, 0))
+    img = Image.new('RGB', (width+9, height*2))
     d = ImageDraw.Draw(img)
     d.text((2, height/2), text, fill=colorText, font=font)
     # d.rectangle((0, 0, width+3, height+3), outline=colorOutline)
@@ -164,7 +167,7 @@ second_sub_sub_frame.grid(row=5,column=0)
 watermark_pos_text = Label(second_sub_sub_frame,text='Position',font=('Candara Light',16),width=10)
 watermark_pos_text.grid(column=0,row=0)
 pos_var = StringVar(second_sub_sub_frame)
-pos_var.set(pos_list[0]) # default value
+pos_var.set(pos_list[2]) # default value
 watermark_pos = OptionMenu(second_sub_sub_frame,pos_var,*pos_list)
 watermark_pos.grid(column=1,row=0)
 
@@ -240,13 +243,18 @@ def add_watermark():
     result2 = None
 
     if(dwt_level == 1):
-        result[yoff:yoff+hh, xoff:xoff+ww] *=k
+        text = watermark_input.get('1.0',END)
+        if len(text)<=1 or text == '':
+            print('add k')
+            result[yoff:yoff+hh, xoff:xoff+ww] *=k
         result[yoff:yoff+hh, xoff:xoff+ww] += manipulated
         result_LL = idwt2((result,( LH, HL, HH)), 'haar')
         cv2.imwrite('gui/watermarked.jpg', result_LL)
     elif(dwt_level == 2):
         result2 = LL2.copy()
-        result2[yoff:yoff+hh2, xoff:xoff+ww2] *=k
+        text = watermark_input.get('1.0',END)
+        if len(text)<=1 or text == '':
+            result2[yoff:yoff+hh2, xoff:xoff+ww2] *=k
         result2[yoff:yoff+hh2, xoff:xoff+ww2] += manipulated
         result_LL2 = idwt2((result2,( LH2, HL2, HH2)), 'haar')
         result_LL =  idwt2((result_LL2,( LH, HL, HH)), 'haar')
@@ -256,9 +264,9 @@ def add_watermark():
 
 def MSE_PSNR():
     img1, img2 = None,None
-    # I1 = cv2.imread('gui/lena256.png')
+    # I1 = cv2.imread('gui/mountain_512.jpg')
     # I2 = cv2.imread('gui/watermarked.jpg')
-    I1 = cv2.imread('gui/cameraman256.png')
+    I1 = cv2.imread('gui/text_watermark.png')
     I2 = cv2.imread('gui/extracted_watermark.jpeg')
     img1 = cv2.cvtColor(I1, cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(I2, cv2.COLOR_BGR2GRAY)
@@ -316,16 +324,20 @@ def extract_watermark():
 
     img_0 = cv2.imread("gui/extracted_watermark.jpeg",cv2.IMREAD_GRAYSCALE)
     new_img = img_0.copy()
-    average = np.average(img_0)
 
     if(len(watermark_input.get('1.0',END))>1):
         for i, row in enumerate(img_0):
             for j,pixel in enumerate(row):
-                if(pixel < (average)):
-                    new_img[i][j] = 0
+                if(pixel > 170):
+                    new_img[i][j] = 220
                 else:
-                    new_img[i][j] = 255
+                    new_img[i][j] = 60
         cv2.imwrite('gui/extracted_watermark.jpeg', new_img)
+        global current_text
+        imagetotext = 'gui/extracted_watermark.jpeg'
+        pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
+        text = pytesseract.image_to_string(Image.open(imagetotext), lang="eng")
+        current_text.set('Extracted Text: '+text)
 
 
     global recover_watermark_icon
@@ -334,7 +346,7 @@ def extract_watermark():
     recover_watermark_icon =  ImageTk.PhotoImage(recover_watermark_icon)
     recover_watermark_button = Button(third_frame,image=recover_watermark_icon,borderwidth=1,relief=RIDGE,width=280,height=280)
     recover_watermark_button.grid(column=3,row=0,padx=5,pady=5)
-    # MSE_PSNR()
+    MSE_PSNR()
 
 def remove_watermark():
     new_LL,wm_LL2,wm_LH2,wm_HL2,wm_HH2,new_image,new_image2 = None,None,None,None,None,None,None
@@ -347,11 +359,15 @@ def remove_watermark():
     if(dwt_level == 1):
         new_LL = wm_LL.copy()
         new_LL[yoff:yoff+hh, xoff:xoff+ww] -= manipulated
-        new_LL[yoff:yoff+hh, xoff:xoff+ww] /=k
+        text = watermark_input.get('1.0',END)
+        if len(text)<=1 or text == '':
+            new_LL[yoff:yoff+hh, xoff:xoff+ww] /=k
     elif(dwt_level == 2):
         new_LL = wm_LL2.copy()
         new_LL[yoff:yoff+hh2, xoff:xoff+ww2] -= manipulated
-        new_LL[yoff:yoff+hh2, xoff:xoff+ww2] /=k
+        text = watermark_input.get('1.0',END)
+        if len(text)<=1 or text == '':
+            new_LL[yoff:yoff+hh2, xoff:xoff+ww2] /=k
  
     if(dwt_level == 1):
         new_image = idwt2((new_LL, ( wm_LH, wm_HL, wm_HH)), 'haar')
@@ -394,6 +410,7 @@ def add_noise():
             x_crd = random.randint(0,cl-1)
             img_0[y_crd][x_crd] = 0
         cv2.imwrite('gui/watermarked.jpg', img_0)
+        cv2.imwrite('gui/noised.jpg', img_0)
 
 
     noised_image_icon = Image.open('gui/watermarked.jpg')
