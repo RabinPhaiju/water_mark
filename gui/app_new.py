@@ -27,16 +27,18 @@ dwt_level = 1
 # q = 1.5
 # q = 1
 # q = 0.98
-# q = 0.95
+q = 0.95
 # q = 0.90
 # q = 0.85
 # q = 0.78
-q = 0.6
+# q = 0.6
 
-k = 0.009
+k = 0.09
 
 pos_list = ['Center','Top Left','Top Right','Bottom Left','Bottom Right']
 noise_list = ['Gaussian','Salt & Pepper']
+rotate_list = [30,60,90,120,150,180,210,240]
+crop_list = ['Center','Top Left','Top Right','Bottom Left','Bottom Right']
 
 cover_image_path = StringVar()
 watermark_image_path = StringVar()
@@ -249,7 +251,6 @@ def add_watermark():
             result[yoff:yoff+hh, xoff:xoff+ww] *=k
         result[yoff:yoff+hh, xoff:xoff+ww] += manipulated
         result_LL = idwt2((result,( LH, HL, HH)), 'haar')
-        cv2.imwrite('gui/watermarked.jpg', result_LL)
     elif(dwt_level == 2):
         result2 = LL2.copy()
         text = watermark_input.get('1.0',END)
@@ -258,7 +259,8 @@ def add_watermark():
         result2[yoff:yoff+hh2, xoff:xoff+ww2] += manipulated
         result_LL2 = idwt2((result2,( LH2, HL2, HH2)), 'haar')
         result_LL =  idwt2((result_LL2,( LH, HL, HH)), 'haar')
-        cv2.imwrite('gui/watermarked.jpg', result_LL)
+    cv2.imwrite('gui/watermarked.jpg', result_LL)
+    cv2.imwrite('gui/watermarked_for_edit.jpg', result_LL)
     upload_watermarked_image('gui/watermarked.jpg')
     # MSE_PSNR()
 
@@ -346,7 +348,7 @@ def extract_watermark():
     recover_watermark_icon =  ImageTk.PhotoImage(recover_watermark_icon)
     recover_watermark_button = Button(third_frame,image=recover_watermark_icon,borderwidth=1,relief=RIDGE,width=280,height=280)
     recover_watermark_button.grid(column=3,row=0,padx=5,pady=5)
-    MSE_PSNR()
+    # MSE_PSNR()
 
 def remove_watermark():
     new_LL,wm_LL2,wm_LH2,wm_HL2,wm_HH2,new_image,new_image2 = None,None,None,None,None,None,None
@@ -381,6 +383,42 @@ def remove_watermark():
     recover_cover_icon =  ImageTk.PhotoImage(recover_cover_icon)
     recovere_cover_button = Button(third_frame,image=recover_cover_icon,borderwidth=1,relief=RIDGE,width=280,height=280)
     recovere_cover_button.grid(column=2,row=0,padx=5,pady=5)
+
+def crop_watermark():
+    crop_type = crop_var.get()
+    #crop half
+    img = cv2.imread("gui/watermarked_for_edit.jpg")
+    (h, w) = img.shape[:2]
+    if(crop_type == 'Center'):
+        img = img[int(h/2-h/4):int(h/2+h/4), int(w/2-w/4):int(w/2+w/4)]
+    elif(crop_type == 'Top Left'):
+        img = img[0:int(h/2), 0:int(w/2)]
+    elif(crop_type == 'Top Right'):
+        img = img[0:int(h/2), int(w/2):int(w)]
+    elif(crop_type == 'Bottom Left'):
+        img = img[int(h/2):int(h), 0:int(w/2)]
+    elif(crop_type == 'Bottom Right'):
+        img = img[int(h/2):int(h), int(w/2):int(w)]
+    #scale double
+    scale_percent = 200 # percent of original size
+    width = int(img.shape[1] * scale_percent / 100)
+    height = int(img.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    resized = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+    cv2.imwrite('gui/watermarked.jpg', resized)
+    upload_watermarked_image('gui/watermarked.jpg')
+
+def rotate_watermark():
+    rotate_type = rotate_var.get()
+    image = cv2.imread("gui/watermarked_for_edit.jpg")
+    (h, w) = image.shape[:2]
+    center = (w / 2, h / 2)
+    angle = int(rotate_type)
+    scale = 1
+    M = cv2.getRotationMatrix2D(center, angle, scale)
+    rotated = cv2.warpAffine(image, M, (w, h))
+    cv2.imwrite('gui/watermarked.jpg', rotated)
+    upload_watermarked_image('gui/watermarked.jpg')
 
 def add_noise():
     global noised_watermark
@@ -446,15 +484,31 @@ third_sub_frame.grid(row=0,column=4)
 add_watermark_cover = Button(third_sub_frame,command=add_watermark,text='Add Watermark',font=('Candara Light',16),width=16)
 add_watermark_cover.grid(column=0,row=0,padx=5)
 
-noise_text = Label(third_sub_frame,text='Choose Noise',font=('Candara Light',16),width=16)
-noise_text.grid(column=0,row=1)
-noise_var = StringVar(third_sub_frame)
-noise_var.set(noise_list[0]) # default value
-noise_selected = OptionMenu(third_sub_frame,noise_var,*noise_list)
-noise_selected.grid(column=0,row=2,padx=5)
+third_sub_sub_frame = ttk.Frame(third_sub_frame)
+third_sub_sub_frame.columnconfigure(0, weight=1)
+third_sub_sub_frame.grid(row=1,column=0)
 
-add_noise_cover = Button(third_sub_frame,command=add_noise,text=' Add Noise',font=('Candara Light',16),width=17)
-add_noise_cover.grid(column=0,row=3,padx=5)
+noise_text = Button(third_sub_sub_frame,command=add_noise,text='Add Noise',font=('Candara Light',10),width=10)
+noise_text.grid(column=0,row=0)
+noise_var = StringVar(third_sub_sub_frame)
+noise_var.set(noise_list[0]) # default value
+noise_selected = OptionMenu(third_sub_sub_frame,noise_var,*noise_list)
+noise_selected.grid(column=1,row=0)
+
+rotate_text = Button(third_sub_sub_frame,command=rotate_watermark,text='Rotate',font=('Candara Light',10),width=10)
+rotate_text.grid(column=0,row=1)
+rotate_var = StringVar(third_sub_sub_frame)
+rotate_var.set(rotate_list[0]) # default value
+rotate_selected = OptionMenu(third_sub_sub_frame,rotate_var,*rotate_list)
+rotate_selected.grid(column=1,row=1)
+
+crop_text = Button(third_sub_sub_frame,command=crop_watermark,text='Crop',font=('Candara Light',10),width=10)
+crop_text.grid(column=0,row=2)
+crop_var = StringVar(third_sub_sub_frame)
+crop_var.set(crop_list[0]) # default value
+crop_selected = OptionMenu(third_sub_sub_frame,crop_var,*crop_list)
+crop_selected.grid(column=1,row=2)
+
 
 remove_watermark_cover = Button(third_sub_frame,command=remove_watermark,text=' Remove Watermark',font=('Candara Light',16))
 remove_watermark_cover.grid(column=0,row=4,padx=5)
