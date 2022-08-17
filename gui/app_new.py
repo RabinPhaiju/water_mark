@@ -20,14 +20,14 @@ style = ttk.Style()
 style.theme_use('xpnative')# ('winnative', 'clam', 'alt', 'default', 'classic', 'vista', 'xpnative')
 
 # global variables
-result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff =None,None,None,None,None,None,None,None,None,None,None,None
+result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,manipulated2,xoff,yoff =None,None,None,None,None,None,None,None,None,None,None,None,None
 result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2 =None,None,None,None,None,None,None,None,None,None,None
 
 dwt_level = 1
 # q = 1.5
 # q = 1
-# q = 0.98
-q = 0.95
+q = 0.98
+# q = 0.95
 # q = 0.90
 # q = 0.85
 # q = 0.78
@@ -186,7 +186,7 @@ third_frame.columnconfigure(0, weight=1)
 third_frame.grid(row=2,column=0,pady=5)
 
 def add_watermark():
-    global result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,xoff,yoff
+    global result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,manipulated2,xoff,yoff
     global result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2
     
     A = cv2.imread(cover_image_path.get())
@@ -238,8 +238,10 @@ def add_watermark():
         
     if(dwt_level == 1):
         manipulated = LL_w * q
+        manipulated2 = LL_w * q
     elif(dwt_level == 2):
         manipulated = LL_w2 * q
+        manipulated2 = LL_w2 * q
 
     result = LL.copy()
     result2 = None
@@ -352,6 +354,12 @@ def extract_watermark():
 
 def remove_watermark():
     new_LL,wm_LL2,wm_LH2,wm_HL2,wm_HH2,new_image,new_image2 = None,None,None,None,None,None,None
+    text = watermark_input.get('1.0',END)
+    maniputated_used = None
+    if len(text)<=1 or text == '':
+        maniputated_used = manipulated
+    else:
+        maniputated_used = manipulated2
     I = cv2.imread('gui/watermarked.jpg', 1)
     I = cv2.cvtColor(I, cv2.COLOR_BGR2GRAY)
     wm_LL,( wm_LH, wm_HL, wm_HH) = dwt2(I, 'haar')
@@ -360,14 +368,13 @@ def remove_watermark():
     
     if(dwt_level == 1):
         new_LL = wm_LL.copy()
-        new_LL[yoff:yoff+hh, xoff:xoff+ww] -= manipulated
-        text = watermark_input.get('1.0',END)
+        new_LL[yoff:yoff+hh, xoff:xoff+ww] -= maniputated_used
         if len(text)<=1 or text == '':
             new_LL[yoff:yoff+hh, xoff:xoff+ww] /=k
     elif(dwt_level == 2):
         new_LL = wm_LL2.copy()
-        new_LL[yoff:yoff+hh2, xoff:xoff+ww2] -= manipulated
-        text = watermark_input.get('1.0',END)
+        new_LL[yoff:yoff+hh2, xoff:xoff+ww2] -= maniputated_used
+        
         if len(text)<=1 or text == '':
             new_LL[yoff:yoff+hh2, xoff:xoff+ww2] /=k
  
@@ -385,38 +392,58 @@ def remove_watermark():
     recovere_cover_button.grid(column=2,row=0,padx=5,pady=5)
 
 def crop_watermark():
+    global manipulated
     crop_type = crop_var.get()
     #crop half
     img = cv2.imread("gui/watermarked_for_edit.jpg")
+    A = manipulated
     (h, w) = img.shape[:2]
+    (ha, wa) = A.shape[:2]
     if(crop_type == 'Center'):
         img = img[int(h/2-h/4):int(h/2+h/4), int(w/2-w/4):int(w/2+w/4)]
+        A = A[int(ha/2-ha/4):int(ha/2+ha/4), int(wa/2-wa/4):int(wa/2+wa/4)]
     elif(crop_type == 'Top Left'):
         img = img[0:int(h/2), 0:int(w/2)]
+        A = A[0:int(ha/2), 0:int(wa/2)]
     elif(crop_type == 'Top Right'):
         img = img[0:int(h/2), int(w/2):int(w)]
+        A = A[0:int(ha/2), int(wa/2):int(wa)]
     elif(crop_type == 'Bottom Left'):
         img = img[int(h/2):int(h), 0:int(w/2)]
+        A = A[int(ha/2):int(ha), 0:int(wa/2)]
     elif(crop_type == 'Bottom Right'):
         img = img[int(h/2):int(h), int(w/2):int(w)]
+        A = A[int(ha/2):int(ha), int(wa/2):int(wa)]
     #scale double
     scale_percent = 200 # percent of original size
     width = int(img.shape[1] * scale_percent / 100)
+    widtha = int(A.shape[1] * scale_percent / 100)
     height = int(img.shape[0] * scale_percent / 100)
+    heighta = int(A.shape[0] * scale_percent / 100)
     dim = (width, height)
+    dima = (widtha, heighta)
     resized = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+    resized_A = cv2.resize(A, dima, interpolation = cv2.INTER_AREA)
     cv2.imwrite('gui/watermarked.jpg', resized)
+    manipulated = resized_A # remove this
     upload_watermarked_image('gui/watermarked.jpg')
 
 def rotate_watermark():
+    global manipulated
     rotate_type = rotate_var.get()
     image = cv2.imread("gui/watermarked_for_edit.jpg")
+    A = manipulated
     (h, w) = image.shape[:2]
+    (ha, wa) = A.shape[:2]
     center = (w / 2, h / 2)
+    centera = (wa / 2, ha / 2)
     angle = int(rotate_type)
     scale = 1
     M = cv2.getRotationMatrix2D(center, angle, scale)
+    Ma = cv2.getRotationMatrix2D(centera, angle, scale)
     rotated = cv2.warpAffine(image, M, (w, h))
+    rotateda = cv2.warpAffine(A, Ma, (wa, ha))
+    manipulated = rotateda # remove this
     cv2.imwrite('gui/watermarked.jpg', rotated)
     upload_watermarked_image('gui/watermarked.jpg')
 
