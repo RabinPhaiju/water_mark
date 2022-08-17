@@ -22,6 +22,7 @@ style.theme_use('xpnative')# ('winnative', 'clam', 'alt', 'default', 'classic', 
 # global variables
 result_LL,LL,LH,HL,HH,h,hh,w,ww,manipulated,manipulated2,xoff,yoff =None,None,None,None,None,None,None,None,None,None,None,None,None
 result_LL2,LL2,LH2,HL2,HH2,h2,hh2,w2,ww2,xoff2,yoff2 =None,None,None,None,None,None,None,None,None,None,None
+current_noise_type =''
 
 dwt_level = 1
 # q = 1.5
@@ -295,6 +296,10 @@ def upload_watermarked_image(img_path):
 def extract_watermark():
     I = cv2.imread('gui/watermarked.jpg', 1)
     I = cv2.cvtColor(I, cv2.COLOR_BGR2GRAY)
+    if(current_noise_type!=''):
+        kernel = np.ones((2,2),np.float32)/4
+        I = cv2.filter2D(I,-1,kernel)
+
     wm_LL,( m_LH, wm_HL, m_HH) = dwt2(I, 'haar')
     wm_LL2,new_LL,new_image,new_image2 = None,None,None,None
     if(dwt_level == 2):
@@ -448,9 +453,9 @@ def rotate_watermark():
     upload_watermarked_image('gui/watermarked.jpg')
 
 def add_noise():
-    global noised_watermark
+    global noised_watermark,current_noise_type
     noise_type = noise_var.get()
-    current_noise_type =''
+    
     if(noise_type == 'Gaussian'):
         current_noise_type = 'gaussian'
     elif(noise_type == 'Salt & Pepper'):
@@ -465,7 +470,7 @@ def add_noise():
     if(noise_type == 'Gaussian'):
         img_0 = cv2.imread('gui/watermarked.jpg',cv2.IMREAD_GRAYSCALE)
         rw,cl = img_0.shape
-        num_pix = random.randint(300,10000)
+        num_pix = random.randint(30,100)
         for i in range(num_pix):
             y_crd = random.randint(0,rw-1)
             x_crd = random.randint(0,cl-1)
