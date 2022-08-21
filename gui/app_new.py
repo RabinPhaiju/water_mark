@@ -271,7 +271,7 @@ def MSE_PSNR():
     img1, img2 = None,None
     # I1 = cv2.imread('gui/mountain_512.jpg')
     # I2 = cv2.imread('gui/watermarked.jpg')
-    I1 = cv2.imread('gui/text_watermark.png')
+    I1 = cv2.imread('gui/lena256.png')
     I2 = cv2.imread('gui/extracted_watermark.jpeg')
     img1 = cv2.cvtColor(I1, cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(I2, cv2.COLOR_BGR2GRAY)
